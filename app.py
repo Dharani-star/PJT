@@ -100,6 +100,16 @@ def processRequest(req):
                         }
                     ],
                     "fulfillmentMessages": [{"text": {"text": [webhookresponse]}}]
+                    
+                    "followupEventInput": {
+                        "name": "auto_respond_patient_details",  # Name of event in Dialogflow
+                        "parameters": {
+                            "Doctor_Name": doctor_name,
+                            "Date": appointment_date,
+                            "Timeslot": time_slot
+                        },
+                        "languageCode": "en"
+                    }
                 }
             else:
                 return {"fulfillmentMessages": [{"text": {"text": [f"Sorry, the slot at {time_slot} is already booked."]}}]}
@@ -182,7 +192,17 @@ def processRequest(req):
    
 
     
+    elif intent == "PatientDetails":
+        # Extract parameters from event trigger
+        doctor_name = parameters.get("Doctor_Name", "")
+        # appointment_date = parameters.get("Date", "")
+        time_slot = parameters.get("Timeslot", "")
     
+        # Generate response immediately
+        webhookresponse = f"Your appointment with {doctor_name} on {appointment_date} at {time_slot} has been confirmed!"
+
+        return {"fulfillmentMessages": [{"text": {"text": [webhookresponse]}}]}
+
 
         
                
