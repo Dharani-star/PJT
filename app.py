@@ -5,7 +5,7 @@ import requests
 import pymongo
 import json
 import os
-from saveConversation import Conversations
+import Conversations
 from DataRequests import MakeApiRequests
 from sendEmail import EMailClient
 from pymongo import MongoClient
