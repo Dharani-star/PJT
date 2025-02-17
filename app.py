@@ -192,7 +192,7 @@ def processRequest(req):
    
 
     
-    elif intent == "PatientDetails":
+    if intent == "PatientDetails":
     # Extract patient details
         doctor_name = parameters.get("Doctor_Name")
         time_slot = parameters.get("Timeslot")
