@@ -75,17 +75,16 @@ def processRequest(req):
 
     # Continue with intent processing...
     if intent == "PatientDetails":
-        doctor_name = parameters.get("Doctor_Name")
-        time_slot = parameters.get("Timeslot")
-        #appointment_date = parameters.get("Date")
+        
         patient_name = parameters.get("patient_name")
         patient_age = parameters.get("patient_age")
         patient_contact = parameters.get("patient_contact")
-    
+
+
+        
         # Store patient details in separate collection
         appointment_data = {
-            "doctor_name": doctor_name,
-            "appointment_time": time_slot,
+           
             "patient_details": {
                 "name": patient_name,
                 "age": patient_age,
@@ -116,6 +115,10 @@ def processRequest(req):
                     break
 
             if slot_found:
+                db.Booking_status.update_one(
+                    {"doctor_name": doctor_name, "time_slots.time": time_slot},
+                    {"$set": {"time_slots.$.flag": False}}
+                )
                 webhookresponse = f"The slot with {doctor_name} on {appointment_date} at {time_slot} is available. Please provide your details to book the appointment."
 
                 return {
