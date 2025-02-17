@@ -212,7 +212,7 @@ def processRequest(req):
             },
             "status": "Confirmed"
         }
-        db.Patient_Appointments.insert_one(appointment_data)
+        db.Patientdetails.insert_one(appointment_data)
     
         webhookresponse = f"Thank you {patient_name}, your appointment with {doctor_name}  at {time_slot} has been confirmed!"
     
