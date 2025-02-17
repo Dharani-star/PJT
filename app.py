@@ -6,8 +6,8 @@ import pymongo
 import json
 import os
 import Conversations
-from DataRequests import MakeApiRequests
-from sendEmail import EMailClient
+# from DataRequests import MakeApiRequests
+# from sendEmail import EMailClient
 from pymongo import MongoClient
 # from flask import Flask, request, jsonify
 from google.cloud import dialogflow_v2 as dialogflow
