@@ -5,21 +5,12 @@ import requests
 import pymongo
 import json
 import os
-import Conversations
+from saveConversation import Conversations
 # from DataRequests import MakeApiRequests
 # from sendEmail import EMailClient
 from pymongo import MongoClient
-# from flask import Flask, request, jsonify
-from google.cloud import dialogflow_v2 as dialogflow
-
-
 
 app = Flask(__name__)  # initialising the flask app with the name 'app'
-
-PROJECT_ID = "pjt-708"
-LANGUAGE_CODE = "en"
-import uuid
-SESSION_ID = str(uuid.uuid4())  # This generates a random session ID
 
 
 # geting and sending response to dialogflow
@@ -48,34 +39,129 @@ def processRequest(req):
     # cust_contact = parameters.get("cust_contact")
     # cust_email = parameters.get("cust_email")
     doctor_name = parameters.get("Doctor_Name")
-    time_slot = parameters.get("Time")
+    time_slot = parameters.get("Timeslot")
     db = configureDataBase()
+    
+    # 🔹 Extract session_id from outputContexts
+    session_path = None
+    output_contexts = result.get("outputContexts", [])
+    
+    if output_contexts:
+        for context in output_contexts:
+            if "sessions/" in context["name"]:  # Look for session in name
+                session_path = context["name"]
+                break  # Stop at first found session
 
+    # If session is still missing, return error message
+    if not session_path:
+        print(" Warning: 'session' field is missing in Dialogflow request.")
+        return {
+            "fulfillmentMessages": [
+                {
+                    "text": {
+                        "text": [
+                            "Error: Missing session information in request."
+                        ]
+                    }
+                }
+            ]
+        }
 
+    # Extract session_id and project_id
+    session_id = session_path.split("/sessions/")[-1].split("/")[0]  # Extract session ID
+    project_id = session_path.split("/")[1]   # Extract project ID
+
+    print(f"✅ Extracted session_id: {session_id}, project_id: {project_id}")
+
+    # Continue with intent processing...
     if intent == "AppointmentBooking":
-        # Find the document for the specified doctor
+        doctor_name = parameters.get("Doctor_Name", "")
+        appointment_date = parameters.get("Date", "")
+        time_slot = parameters.get("Timeslot", "")
+
+        # Check slot availability in MongoDB
         doctor = db.Booking_status.find_one({"doctor_name": doctor_name})
 
         if doctor:
-            # Check the time_slots array for the specified time
             slot_found = False
             for slot in doctor["time_slots"]:
-                if slot["time"] == time_slot:
+                if slot["time"] == time_slot and slot["flag"]:
                     slot_found = True
-                    if slot["flag"]:  # Slot is available
-                        # Update the flag to false (book the slot)
-                        db.Booking_status.update_one(
-                            {"doctor_name": doctor_name, "time_slots.time": time_slot},
-                            {"$set": {"time_slots.$.flag": False}}
-                        )
-                        webhookresponse = f"The appointment has been successfully booked with {doctor_name} at {time_slot}."
-                    else:  # Slot is already booked
-                        webhookresponse = f"Sorry, the slot at {time_slot} for {doctor_name} is already booked."
                     break
-            if not slot_found:
-                webhookresponse = f"No slot found at {time_slot} for {doctor_name}."
-        else:
-            webhookresponse = f"Doctor {doctor_name} is not available in the system."
+
+            if slot_found:
+                webhookresponse = f"The slot with {doctor_name} on {appointment_date} at {time_slot} is available. Please provide your details to book the appointment."
+
+                return {
+                    "outputContexts": [
+                        {
+                            "name": f"projects/{project_id}/agent/sessions/{session_id}/contexts/awaiting_patient_details",
+                            "lifespanCount": 5
+                        }
+                    ],
+                    "fulfillmentMessages": [{"text": {"text": [webhookresponse]}}]
+                }
+            else:
+                return {"fulfillmentMessages": [{"text": {"text": [f"Sorry, the slot at {time_slot} is already booked."]}}]}
+
+    return {"fulfillmentMessages": [{"text": {"text": ["Something went wrong."]}}]}
+
+
+    # if intent == "AppointmentBooking":
+    #     # Find the document for the specified doctor
+    #     doctor = db.Booking_status.find_one({"doctor_name": doctor_name})
+
+    #     if doctor:
+    #         # Check the time_slots array for the specified time
+    #         slot_found = False
+    #         for slot in doctor["time_slots"]:
+    #             if slot["time"] == time_slot:
+    #                 slot_found = True
+    #                 if slot["flag"]:  # Slot is available
+    #                     # Update the flag to false (book the slot)
+    #                     db.Booking_status.update_one(
+    #                         {"doctor_name": doctor_name, "time_slots.time": time_slot},
+    #                         {"$set": {"time_slots.$.flag": False}}
+    #                     )
+    #                     webhookresponse = f"The appointment has been successfully booked with {doctor_name} at {time_slot}."
+    #                 else:  # Slot is already booked
+    #                     webhookresponse = f"Sorry, the slot at {time_slot} for {doctor_name} is already booked."
+    #                 break
+    #         if not slot_found:
+    #             webhookresponse = f"No slot found at {time_slot} for {doctor_name}."
+    #     else:
+    #         webhookresponse = f"Doctor {doctor_name} is not available in the system."
+
+    #     # Log the conversation
+    #     fulfillmentText = webhookresponse
+    #     log.saveConversations(sessionID, query_text, fulfillmentText, intent, db)
+
+    #     return {
+    #         "fulfillmentMessages": [
+    #             {
+    #                 "text": {
+    #                     "text": [
+    #                         webhookresponse
+    #                     ]
+    #                 }
+    #             }
+    #         ]
+    #     }
+    
+    if intent == "EmergencyResponse":
+        patient_condition = parameters.get("Condition")
+        location = parameters.get("Location")
+        phone_number = parameters.get("Phonenumber")
+
+        # Store data in MongoDB
+        emergency_data = {
+            "patient_condition": patient_condition,
+            "location": location,
+            "phone_number": phone_number
+        }
+        db.Emergency_records.insert_one(emergency_data)
+
+        webhookresponse = "Emergency details saved. Help is on the way!"
 
         # Log the conversation
         fulfillmentText = webhookresponse
@@ -92,192 +178,34 @@ def processRequest(req):
                 }
             ]
         }
+
+   
+
+    
     
 
+        
+               
+    
+    
+        
+    
 
-    if intent == 'covid_searchcountry':
-        cust_country = parameters.get("geo-country")
-        if(cust_country=="United States"):
-            cust_country = "USA"
+    
 
-        fulfillmentText, deaths_data, testsdone_data = makeAPIRequest(cust_country)
-        webhookresponse = "***Covid Report*** \n\n" + " New cases :" + str(fulfillmentText.get('new')) + \
-                          "\n" + " Active cases : " + str(
-            fulfillmentText.get('active')) + "\n" + " Critical cases : " + str(fulfillmentText.get('critical')) + \
-                          "\n" + " Recovered cases : " + str(
-            fulfillmentText.get('recovered')) + "\n" + " Total cases : " + str(fulfillmentText.get('total')) + \
-                          "\n" + " Total Deaths : " + str(deaths_data.get('total')) + "\n" + " New Deaths : " + str(
-            deaths_data.get('new')) + \
-                          "\n" + " Total Test Done : " + str(deaths_data.get('total')) + "\n\n*******END********* \n "
-        print(webhookresponse)
-        log.saveConversations(sessionID, cust_country, webhookresponse, intent, db)
-        log.saveCases( "country", fulfillmentText, db)
+            
+           
 
-        return {
-
-            "fulfillmentMessages": [
-                {
-                    "text": {
-                        "text": [
-                            webhookresponse
-                        ]
-
-                    }
-                },
-                {
-                    "text": {
-                        "text": [
-                            "Do you want me to send the detailed report to your e-mail address? Type.. \n 1. Sure \n 2. Not now "
-                            # "We have sent the detailed report of {} Covid-19 to your given mail address.Do you have any other Query?".format(cust_country)
-                        ]
-
-                    }
-                }
-            ]
-        }
-    elif intent == "Welcome" or intent == "continue_conversation" or intent == "not_send_email" or intent == "endConversation" or intent == "Fallback" or intent == "covid_faq" or intent == "select_country_option":
-        fulfillmentText = result.get("fulfillmentText")
-        log.saveConversations(sessionID, query_text, fulfillmentText, intent, db)
-    elif intent == "send_report_to_email":
-        fulfillmentText = result.get("fulfillmentText")
-        log.saveConversations(sessionID, "Sure send email", fulfillmentText, intent, db)
-        val = log.getcasesForEmail("country", "", db)
-        print("===>",val)
-        prepareEmail([cust_name, cust_contact, cust_email,val])
-    elif intent == "totalnumber_cases":
-        fulfillmentText = makeAPIRequest("world")
-
-        webhookresponse = "***World wide Report*** \n\n" + " Confirmed cases :" + str(
-            fulfillmentText.get('confirmed')) + \
-                          "\n" + " Deaths cases : " + str(
-            fulfillmentText.get('deaths')) + "\n" + " Recovered cases : " + str(fulfillmentText.get('recovered')) + \
-                          "\n" + " Active cases : " + str(
-            fulfillmentText.get('active')) + "\n" + " Fatality Rate : " + str(
-            fulfillmentText.get('fatality_rate') * 100) + "%" + \
-                          "\n" + " Last updated : " + str(
-            fulfillmentText.get('last_update')) + "\n\n*******END********* \n "
-        print(webhookresponse)
-        log.saveConversations(sessionID, "Cases worldwide", webhookresponse, intent, db)
-        #log.saveCases("world", fulfillmentText, db)
-
-        return {
-
-            "fulfillmentMessages": [
-                {
-                    "text": {
-                        "text": [
-                            webhookresponse
-                        ]
-
-                    }
-                },
-                {
-                    "text": {
-                        "text": [
-                            "Do you want me to send the detailed report to your e-mail address? Type.. \n 1. Sure \n 2. Not now "
-                            # "We have sent the detailed report of {} Covid-19 to your given mail address.Do you have any other Query?".format(cust_country)
-                        ]
-
-                    }
-                }
-            ]
-        }
-
-    elif intent == "covid_searchstate":
-
-        fulfillmentText = makeAPIRequest("state")
-        print(len(fulfillmentText))
-
-        webhookresponse1 = ''
-        webhookresponse2 = ''
-        webhookresponse3 = ''
-        for i in range(0,11):
-            webhookresponse = fulfillmentText[i]
-            # print(webhookresponse['state'])
-            # js = json.loads(webhookresponse.text)
-
-            # print(str(js.state))
-            webhookresponse1 += "*********\n" + " State :" + str(webhookresponse['state']) + \
-                                "\n" + " Confirmed cases : " + str(
-                webhookresponse['confirmed']) + "\n" + " Death cases : " + str(webhookresponse['deaths']) + \
-                                "\n" + " Active cases : " + str(
-                webhookresponse['active']) + "\n" + " Recovered cases : " + str(
-                webhookresponse['recovered']) + "\n*********"
-        for i in range(11, 21):
-            webhookresponse = fulfillmentText[i]
-            # print(webhookresponse['state'])
-            # js = json.loads(webhookresponse.text)
-
-            # print(str(js.state))
-            webhookresponse2 += "*********\n" + " State :" + str(webhookresponse['state']) + \
-                                "\n" + " Confirmed cases : " + str(
-                webhookresponse['confirmed']) + "\n" + " Death cases : " + str(webhookresponse['deaths']) + \
-                                "\n" + " Active cases : " + str(
-                webhookresponse['active']) + "\n" + " Recovered cases : " + str(
-                webhookresponse['recovered']) + "\n*********"
-        for i in range(21, 38):
-            webhookresponse = fulfillmentText[i]
-            # print(webhookresponse['state'])
-            # js = json.loads(webhookresponse.text)
-
-            # print(str(js.state))
-            webhookresponse3 += "*********\n" + " State :" + str(webhookresponse['state']) + \
-                                "\n" + " Confirmed cases : " + str(
-                webhookresponse['confirmed']) + "\n" + " Death cases : " + str(webhookresponse['deaths']) + \
-                                "\n" + " Active cases : " + str(
-                webhookresponse['active']) + "\n" + " Recovered cases : " + str(
-                webhookresponse['recovered']) + "\n*********"
-        print("***World wide Report*** \n\n" + webhookresponse1 + "\n\n*******END********* \n")
-        print("***World wide Report*** \n\n" + webhookresponse2 + "\n\n*******END********* \n")
-        print("***World wide Report*** \n\n" + webhookresponse3 + "\n\n*******END********* \n")
+            
 
 
 
-        log.saveConversations(sessionID, "Indian State Cases", webhookresponse1, intent, db)
-        return {
-
-            "fulfillmentMessages": [
-                {
-                    "text": {
-                        "text": [
-                            webhookresponse1
-                        ]
-
-                    }
-                },
-                {
-                    "text": {
-                        "text": [
-                            webhookresponse2
-                        ]
-
-                    }
-                },
-                {
-                    "text": {
-                        "text": [
-                            webhookresponse3
-                        ]
-
-                    }
-                },
-                {
-                    "text": {
-                        "text": [
-                            "Do you want me to send the detailed report to your e-mail address? Type.. \n 1. Sure \n 2. Not now "
-                            # "We have sent the detailed report of {} Covid-19 to your given mail address.Do you have any other Query?".format(cust_country)
-                        ]
-
-                    }
-                }
-            ]
-        }
+        
+                 
+                    
 
 
-    else:
-        return {
-            "fulfillmentText": "something went wrong,Lets start from the begning, Say Hi",
-        }
+    
 
 
 def configureDataBase():
@@ -307,7 +235,6 @@ def prepareEmail(contact_list):
 #     print("Starting app on port %d" % port)
 #     app.run(debug=False, port=port, host='0.0.0.0')
 if __name__ == "__main__":
+    # app.run(port=5000, debug=True) # running the app on the local machine on port 8000
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-    # app.run(port=5000, debug=True) # running the app on the local machine on port 8000
