@@ -101,15 +101,15 @@ def processRequest(req):
                     # ],
                     "fulfillmentMessages": [{"text": {"text": [webhookresponse]}}],
                     
-                    "followupEventInput": {
-                        "name": "auto_respond_patient_details",  # Name of event in Dialogflow
-                        "parameters": {
-                            "Doctor_Name": doctor_name,
-                            "Date": appointment_date,
-                            "Timeslot": time_slot
-                        },
-                        "languageCode": "en"
-                    }
+                    # "followupEventInput": {
+                    #     "name": "auto_respond_patient_details",  # Name of event in Dialogflow
+                    #     "parameters": {
+                    #         "Doctor_Name": doctor_name,
+                    #         "Date": appointment_date,
+                    #         "Timeslot": time_slot
+                    #     },
+                    #     "languageCode": "en"
+                    # }
                 }
             else:
                 return {"fulfillmentMessages": [{"text": {"text": [f"Sorry, the slot at {time_slot} is already booked."]}}]}
