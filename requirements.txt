@@ -3,4 +3,3 @@ requests
 pymongo
 google-cloud-dialogflow
 flask-cors
-gunicorn
