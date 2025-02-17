@@ -193,14 +193,29 @@ def processRequest(req):
 
     
     elif intent == "PatientDetails":
-        # Extract parameters from event trigger
-        doctor_name = parameters.get("Doctor_Name", "")
-        # appointment_date = parameters.get("Date", "")
-        time_slot = parameters.get("Timeslot", "")
+    # Extract patient details
+        doctor_name = parameters.get("Doctor_Name")
+        time_slot = parameters.get("Timeslot")
+        #appointment_date = parameters.get("Date")
+        patient_name = parameters.get("patient_name")
+        patient_age = parameters.get("patient_age")
+        patient_contact = parameters.get("patient_contact")
     
-        # Generate response immediately
-        webhookresponse = f"Your appointment with {doctor_name} on {appointment_date} at {time_slot} has been confirmed!"
-
+        # Store patient details in separate collection
+        appointment_data = {
+            "doctor_name": doctor_name,
+            "appointment_time": time_slot,
+            "patient_details": {
+                "name": patient_name,
+                "age": patient_age,
+                "contact": patient_contact
+            },
+            "status": "Confirmed"
+        }
+        db.Patient_Appointments.insert_one(appointment_data)
+    
+        webhookresponse = f"Thank you {patient_name}, your appointment with {doctor_name}  at {time_slot} has been confirmed!"
+    
         return {"fulfillmentMessages": [{"text": {"text": [webhookresponse]}}]}
 
 
