@@ -99,7 +99,7 @@ def processRequest(req):
                             "lifespanCount": 5
                         }
                     ],
-                    "fulfillmentMessages": [{"text": {"text": [webhookresponse]}}]
+                    "fulfillmentMessages": [{"text": {"text": [webhookresponse]}}],
                     
                     "followupEventInput": {
                         "name": "auto_respond_patient_details",  # Name of event in Dialogflow
