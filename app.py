@@ -74,6 +74,32 @@ def processRequest(req):
     print(f"✅ Extracted session_id: {session_id}, project_id: {project_id}")
 
     # Continue with intent processing...
+    if intent == "PatientDetails":
+        doctor_name = parameters.get("Doctor_Name")
+        time_slot = parameters.get("Timeslot")
+        #appointment_date = parameters.get("Date")
+        patient_name = parameters.get("patient_name")
+        patient_age = parameters.get("patient_age")
+        patient_contact = parameters.get("patient_contact")
+    
+        # Store patient details in separate collection
+        appointment_data = {
+            "doctor_name": doctor_name,
+            "appointment_time": time_slot,
+            "patient_details": {
+                "name": patient_name,
+                "age": patient_age,
+                "contact": patient_contact
+            },
+            "status": "Confirmed"
+        }
+        db.Patientdetails.insert_one(appointment_data)
+    
+        webhookresponse = f"Thank you {patient_name}, your appointment with {doctor_name}  at {time_slot} has been confirmed!"
+    
+        return {"fulfillmentMessages": [{"text": {"text": [webhookresponse]}}]}
+
+    
     if intent == "AppointmentBooking":
         doctor_name = parameters.get("Doctor_Name", "")
         appointment_date = parameters.get("Date", "")
@@ -192,31 +218,7 @@ def processRequest(req):
    
 
     
-    if intent == "PatientDetails":
-    # Extract patient details
-        doctor_name = parameters.get("Doctor_Name")
-        time_slot = parameters.get("Timeslot")
-        #appointment_date = parameters.get("Date")
-        patient_name = parameters.get("patient_name")
-        patient_age = parameters.get("patient_age")
-        patient_contact = parameters.get("patient_contact")
     
-        # Store patient details in separate collection
-        appointment_data = {
-            "doctor_name": doctor_name,
-            "appointment_time": time_slot,
-            "patient_details": {
-                "name": patient_name,
-                "age": patient_age,
-                "contact": patient_contact
-            },
-            "status": "Confirmed"
-        }
-        db.Patientdetails.insert_one(appointment_data)
-    
-        webhookresponse = f"Thank you {patient_name}, your appointment with {doctor_name}  at {time_slot} has been confirmed!"
-    
-        return {"fulfillmentMessages": [{"text": {"text": [webhookresponse]}}]}
 
 
         
