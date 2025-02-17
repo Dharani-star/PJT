@@ -93,12 +93,12 @@ def processRequest(req):
                 webhookresponse = f"The slot with {doctor_name} on {appointment_date} at {time_slot} is available. Please provide your details to book the appointment."
 
                 return {
-                    "outputContexts": [
-                        {
-                            "name": f"projects/{project_id}/agent/sessions/{session_id}/contexts/awaiting_patient_details",
-                            "lifespanCount": 5
-                        }
-                    ],
+                    # "outputContexts": [
+                    #     {
+                    #         "name": f"projects/{project_id}/agent/sessions/{session_id}/contexts/awaiting_patient_details",
+                    #         "lifespanCount": 5
+                    #     }
+                    # ],
                     "fulfillmentMessages": [{"text": {"text": [webhookresponse]}}],
                     
                     "followupEventInput": {
